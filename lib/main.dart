@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'screens/difficulty_selection_screen.dart';
+import 'screens/login_screen.dart'; // Import LoginScreen
+import 'services/auth_service.dart'; // Import AuthService
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // Cần thiết cho async main
+  final AuthService authService = AuthService();
+  bool isLoggedIn = await authService.isLoggedIn();
+  runApp(MyApp(isLoggedIn: isLoggedIn));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  final bool isLoggedIn;
+  const MyApp({Key? key, required this.isLoggedIn}) : super(key: key);
 
   // This widget is the root of your application.
   @override
@@ -31,7 +38,7 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const DifficultySelectionScreen(),
+      home: isLoggedIn ? const DifficultySelectionScreen() : const LoginScreen(),
     );
   }
 }

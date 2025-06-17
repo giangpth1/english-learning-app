@@ -12,7 +12,7 @@ class WordService {
   // iOS Simulator: 'http://localhost:8000/random-english-word/api/words'
   // Khi deploy lên server, dùng URL của server: 'https://your-django-app.com/random-english-word/api/words'
   // final String baseUrl = 'http://13.215.176.86:8000/random-english-word/api/words';
-  final String baseUrl = 'http://127.0.0.1:8000/random-english-word/api/words';
+  final String baseUrl = 'http://127.0.0.1:8000/api/words';
   
   Future<EnglishWord> fetchMediumQuizWord() async {
     final response = await http.get(Uri.parse('$baseUrl/medium-quiz-choices/'));

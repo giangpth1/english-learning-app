@@ -3,6 +3,7 @@ import '../models/english_word.dart';
 import '../models/easy_quiz_choice.dart'; // Import model mới
 import '../services/word_service.dart';
 import 'difficulty_selection_screen.dart'; // Import enum QuizDifficulty và màn hình chọn
+import '../services/auth_service.dart'; // Import AuthService
 
 class QuizScreen extends StatefulWidget {
   final QuizDifficulty difficulty; // Thêm tham số độ khó
@@ -15,6 +16,7 @@ class QuizScreen extends StatefulWidget {
 
 class _QuizScreenState extends State<QuizScreen> {
   final WordService _wordService = WordService();
+  final AuthService _authService = AuthService(); // Thêm AuthService
   // Sử dụng dynamic để _wordFuture có thể giữ Future<EnglishWord> hoặc Future<EasyQuizChoice>
   late Future<dynamic> _wordFuture;
   final TextEditingController _translationController = TextEditingController();
@@ -75,16 +77,42 @@ class _QuizScreenState extends State<QuizScreen> {
     }
   }
 
-  void _showResultDialog(bool isCorrect, String userAnswer, String correctAnswer) {
-    if (isCorrect) {
-      setState(() {
-        _correctStreak++;
-      });
-    } else {
-      setState(() {
-        _correctStreak = 0;
-      });
+  Future<void> _maybeUpdateHighScore(int scoreAchieved) async {
+    if (scoreAchieved <= 0) return; // Không cần cập nhật nếu điểm là 0 hoặc âm
+
+    try {
+      final String difficultyLevel = widget.difficulty.name;
+      final int currentHighScore = await _authService.getHighScore(difficultyLevel);
+
+      if (scoreAchieved > currentHighScore) {
+        bool success = await _authService.updateHighScore(difficultyLevel, scoreAchieved);
+        if (success && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('New High Score for ${difficultyLevel.capitalize()}: $scoreAchieved!')),
+          );
+        } else if (!success && mounted) {
+          // Không cần hiển thị lỗi nếu chỉ là không phải high score mới,
+          // nhưng có thể hiển thị nếu API update thất bại dù điểm cao hơn.
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(content: Text('Failed to update high score on server.')),
+          // );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error checking/updating high score: ${e.toString()}')),
+        );
+      }
     }
+  }
+
+  void _showResultDialog(bool isCorrect, String userAnswer, String correctAnswer) {
+    final int scoreBeforeDialog = _correctStreak;
+    if (isCorrect) _correctStreak++; else _correctStreak = 0;
+    setState(() {}); // Cập nhật UI cho streak
+
+    if (!isCorrect) _maybeUpdateHighScore(scoreBeforeDialog);
 
     if (!mounted) return;
     showDialog(
@@ -125,11 +153,10 @@ class _QuizScreenState extends State<QuizScreen> {
         meaning = currentChoiceData.correctTranslation;
       }
 
-      setState(() {
-        _correctStreak = 0;
-      });
+      final int scoreBeforeSkip = _correctStreak;
+      setState(() => _correctStreak = 0);
+      _maybeUpdateHighScore(scoreBeforeSkip);
 
-      if (!mounted) return;
       showDialog(
         context: context,
         builder: (BuildContext context) {
